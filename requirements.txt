@@ -1,0 +1,10 @@
+langgraph
+langchain
+langchain-openai
+langchain-tavily
+langchain-community
+wikipedia
+python-dotenv
+pydantic
+pytest
+pytest-cov

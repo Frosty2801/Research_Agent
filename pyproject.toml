@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "research-agent"
+version = "0.1.0"
+description = "Automatic research agent built with LangChain and LangGraph."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "cohorte5" }
+]
+dependencies = [
+  "langgraph",
+  "langchain",
+  "langchain-openai",
+  "langchain-tavily",
+  "langchain-community",
+  "wikipedia",
+  "python-dotenv",
+  "pydantic",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
