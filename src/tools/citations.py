@@ -1,7 +1,7 @@
 from src.core.schemas import ResearchReport, Source
 
 class CitationExtractor:
-    def extract_citations(self, text: str) -> list[Source]:
+    def extract_citations(self, report: ResearchReport) -> list[Source]:
         # Placeholder implementation for citation extraction
         return [
             Source(
@@ -16,6 +16,3 @@ class CitationExtractor:
             )
         ]
     
-def extract_citations(text: str) -> list[Source]:
-    extractor = CitationExtractor()
-    return extractor.extract_citations(text)

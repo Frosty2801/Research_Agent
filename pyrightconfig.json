@@ -2,7 +2,7 @@
   "include": ["src"],
   "extraPaths": ["src"],
   "venvPath": ".",
-  "venv": "venv",
+  "venv": ".venv",
   "typeCheckingMode": "basic",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,

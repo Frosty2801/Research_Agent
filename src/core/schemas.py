@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class ResearchInput:
@@ -26,10 +26,9 @@ class ResearchReport:
     topic: str
     title: str = ""
     summary: str = ""
-    topic: str
     previous_summary: str | None = None
     current_summary: str | None = None
-    findings: list[Finding] = []
-    sources: list[Source] = []
-    messages: list[dict] = []
+    findings: list[Finding] = field(default_factory=list)
+    sources: list[Source] = field(default_factory=list)
+    messages: list[dict] = field(default_factory=list)
     
