@@ -1,4 +1,6 @@
+
 class WebPageReaderTool:
     def read(self, url: str, fallback: str = "") -> str:
-        return f"Obtained resume of {url}. {fallback}".strip()
+        # Simulate reading a webpage by returning the URL and fallback content
+        return f"Content from {url}. Fallback content: {fallback}"
     

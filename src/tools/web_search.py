@@ -9,11 +9,11 @@ class WebSearchTool:
             Source(
                 title=f"Result 1 about {query}",
                 url="https://example.com/source-1",
-                snippet="Initial font about {query} with introductory data"
+                snippet=f"Initial font about {query} with introductory data"
             ),
             Source(
                 title=f"Result 2 about {query}",
                 url="https://example.com/source-2",
-                snippet="Complementary font about {query} with aditional context"
+                snippet=f"Complementary font about {query} with aditional context"
             )
         ]
