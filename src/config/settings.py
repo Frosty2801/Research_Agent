@@ -11,12 +11,13 @@ class Settings(BaseSettings):
     )
 
     ollama_api_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1"
+    ollama_model: str = "gemma4:e4b"
     llm_provider: str = "ollama"
     llm_temperature: float = 0.2
     default_search_provider: str = "mock"
     tavily_api_key: str | None = None
     memory_dir: Path = Path("src/data/memory")
+    chroma_collection_name: str = "research_memory"
     reports_dir: Path = Path("src/data/outputs")
 
 

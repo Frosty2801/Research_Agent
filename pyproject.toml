@@ -5,21 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "research-agent"
 version = "0.1.0"
-description = "Automatic research agent built with LangChain and LangGraph."
+description = "Automatic research agent with Ollama, Tavily, and ChromaDB."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
   { name = "cohorte5" }
 ]
 dependencies = [
-  "langgraph",
-  "langchain",
-  "langchain-openai",
   "langchain-ollama",
-  "langchain-huggingface",
   "langchain-tavily",
-  "langchain-community",
-  "wikipedia",
+  "chromadb",
   "python-dotenv",
   "pydantic",
   "pydantic-settings",
@@ -30,6 +25,9 @@ dev = [
   "pytest",
   "pytest-cov",
 ]
+
+[project.scripts]
+research-agent = "src.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -1,11 +1,6 @@
-langgraph
-langchain
-langchain-openai
 langchain-ollama
-langchain-huggingface
 langchain-tavily
-langchain-community
-wikipedia
+chromadb
 python-dotenv
 pydantic
 pydantic-settings

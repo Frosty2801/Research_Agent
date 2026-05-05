@@ -5,7 +5,7 @@ from src.core.reporter import Reporter
 from src.core.researcher import Researcher
 from src.llm.ollama_client import OllamaTextGenerator
 from src.llm.research_assistant import LLMResearchAssistant
-from src.memory.json_store import JsonResearchMemory
+from src.memory.chroma_store import ChromaResearchMemory
 from src.tools.citations import CitationExtractor
 from src.tools.web_search import WebSearchTool
 from src.tools.webpage_reader import WebPageReaderTool
@@ -23,7 +23,10 @@ def build_research_workflow(settings: Settings | None = None) -> ResearchWorkflo
             claim_generator=llm_assistant,
         ),
         reporter=Reporter(CitationExtractor()),
-        memory=JsonResearchMemory(app_settings.memory_dir),
+        memory=ChromaResearchMemory(
+            persist_dir=app_settings.memory_dir,
+            collection_name=app_settings.chroma_collection_name,
+        ),
         summary_builder=llm_assistant,
     )
 

@@ -1,5 +1,6 @@
 import json
 
+from src import cli
 from src.application.factory import build_research_workflow
 from src.application.research_workflow import ResearchWorkflow
 from src.config.settings import Settings
@@ -10,7 +11,8 @@ from src.core.schemas import Finding, ResearchReport, Source
 from src.core.state import AgentState
 from src.core.summarizer import SummaryBuilder
 from src.llm.research_assistant import LLMResearchAssistant
-from src.memory.json_store import JsonResearchMemory
+from src.memory.chroma_store import ChromaResearchMemory
+from src.reports.writer import ResearchReportWriter
 from src.tools import webpage_reader
 from src.tools.citations import CitationExtractor
 from src.tools.webpage_reader import WebPageReaderTool
@@ -63,6 +65,41 @@ class FakeTextGenerator:
     def generate(self, prompt: str) -> str:
         self.prompts.append(prompt)
         return self.responses.pop(0)
+
+
+class FakeChromaCollection:
+    def __init__(self) -> None:
+        self.documents: dict[str, str] = {}
+        self.metadatas: dict[str, dict] = {}
+
+    def get(self, ids: list[str], include: list[str]) -> dict:
+        del include
+        documents = [
+            self.documents[memory_id]
+            for memory_id in ids
+            if memory_id in self.documents
+        ]
+        return {"documents": documents}
+
+    def upsert(
+        self,
+        ids: list[str],
+        documents: list[str],
+        metadatas: list[dict],
+    ) -> None:
+        for memory_id, document, metadata in zip(ids, documents, metadatas, strict=True):
+            self.documents[memory_id] = document
+            self.metadatas[memory_id] = metadata
+
+
+class FakeWorkflow:
+    def __init__(self, report: ResearchReport) -> None:
+        self.report = report
+        self.topics: list[str] = []
+
+    def run(self, topic: str) -> ResearchReport:
+        self.topics.append(topic)
+        return self.report
 
 
 def test_planner_builds_state_with_topic_previous_summary_and_steps() -> None:
@@ -221,8 +258,9 @@ def test_webpage_reader_returns_fallback_on_error(monkeypatch) -> None:
     assert content == "Fallback"
 
 
-def test_research_memory_saves_and_loads_summary(tmp_path) -> None:
-    memory = JsonResearchMemory(tmp_path)
+def test_chroma_memory_saves_and_loads_summary(tmp_path) -> None:
+    collection = FakeChromaCollection()
+    memory = ChromaResearchMemory(tmp_path, collection=collection)
     report = ResearchReport(
         topic="Climate Policy",
         title="Climate Policy Report",
@@ -231,12 +269,10 @@ def test_research_memory_saves_and_loads_summary(tmp_path) -> None:
     )
 
     path = memory.save_report(report)
-    data = json.loads(path.read_text(encoding="utf-8"))
 
-    assert path.name == "climate-policy.json"
-    assert data["topic"] == "Climate Policy"
-    assert data["current_summary"] == "Current synthesis"
+    assert path == tmp_path
     assert memory.load_previous_summary("Climate Policy") == "Current synthesis"
+    assert collection.metadatas["climate-policy"]["topic"] == "Climate Policy"
 
 
 def test_summary_builder_combines_previous_memory_with_current_findings() -> None:
@@ -290,7 +326,7 @@ def test_llm_research_assistant_builds_claim_title_and_summary() -> None:
 
 
 def test_research_workflow_loads_previous_summary_and_saves_new_report(tmp_path) -> None:
-    memory = JsonResearchMemory(tmp_path)
+    memory = ChromaResearchMemory(tmp_path, collection=FakeChromaCollection())
     memory.save_report(
         ResearchReport(
             topic="Climate Policy",
@@ -326,3 +362,52 @@ def test_factory_builds_workflow_from_settings(tmp_path) -> None:
     workflow = build_research_workflow(settings)
 
     assert isinstance(workflow, ResearchWorkflow)
+    assert isinstance(workflow.memory, ChromaResearchMemory)
+
+
+def test_report_writer_saves_markdown_and_json(tmp_path) -> None:
+    report = ResearchReport(
+        topic="Climate Policy",
+        title="Climate Policy Report",
+        summary="Current synthesis",
+        findings=[
+            Finding(
+                claim="A claim",
+                evidence="Evidence",
+                source=Source(title="Source title", url="https://example.com"),
+            )
+        ],
+        sources=[Source(title="Source title", url="https://example.com")],
+    )
+
+    paths = ResearchReportWriter(tmp_path).save(report)
+
+    markdown = paths.markdown.read_text(encoding="utf-8")
+    payload = json.loads(paths.json.read_text(encoding="utf-8"))
+    assert paths.markdown.suffix == ".md"
+    assert paths.json.suffix == ".json"
+    assert "# Climate Policy Report" in markdown
+    assert "Current synthesis" in markdown
+    assert payload["topic"] == "Climate Policy"
+
+
+def test_cli_runs_workflow_and_writes_report(tmp_path, monkeypatch, capsys) -> None:
+    report = ResearchReport(
+        topic="soil health",
+        title="Soil Health Report",
+        summary="Summary",
+    )
+    workflow = FakeWorkflow(report)
+    settings = Settings(reports_dir=tmp_path)
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "build_research_workflow", lambda _: workflow)
+
+    exit_code = cli.main(["soil", "health"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert workflow.topics == ["soil health"]
+    assert "Soil Health Report" in output
+    assert len(list(tmp_path.glob("*.md"))) == 1
+    assert len(list(tmp_path.glob("*.json"))) == 1
