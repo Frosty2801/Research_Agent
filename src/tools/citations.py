@@ -1,18 +1,15 @@
 from src.core.schemas import ResearchReport, Source
 
+
 class CitationExtractor:
     def extract_citations(self, report: ResearchReport) -> list[Source]:
-        # Placeholder implementation for citation extraction
-        return [
-            Source(
-                title="Extracted Source 1",
-                url="https://example.com/extracted-source-1",
-                snippet="Snippet from extracted source 1"
-            ),
-            Source(
-                title="Extracted Source 2",
-                url="https://example.com/extracted-source-2",
-                snippet="Snippet from extracted source 2"
-            )
-        ]
-    
+        sources = [*report.sources, *(finding.source for finding in report.findings)]
+        deduped: dict[str, Source] = {}
+
+        for source in sources:
+            key = source.url or source.title
+            if not key or key in deduped:
+                continue
+            deduped[key] = source
+
+        return list(deduped.values())

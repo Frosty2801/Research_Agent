@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 from src.core.schemas import Finding, Source
 
+
 class AgentState(BaseModel):
     topic: str
     title: str = ""
@@ -12,4 +13,3 @@ class AgentState(BaseModel):
     previous_summary: str | None = None
     current_summary: str | None = None
     messages: list[dict] = Field(default_factory=list)
-    

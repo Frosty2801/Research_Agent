@@ -15,11 +15,14 @@ dependencies = [
   "langgraph",
   "langchain",
   "langchain-openai",
+  "langchain-ollama",
+  "langchain-huggingface",
   "langchain-tavily",
   "langchain-community",
   "wikipedia",
   "python-dotenv",
   "pydantic",
+  "pydantic-settings",
 ]
 
 [project.optional-dependencies]
