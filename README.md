@@ -1,30 +1,192 @@
 # Research Agent
 
-Agente de investigacion en Python para construir un flujo simple de busqueda, lectura de fuentes y generacion de reportes estructurados.
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-active%20development-yellow)
 
-> Estado actual: el proyecto tiene una arquitectura base, herramientas iniciales, memoria persistente en ChromaDB y una capa LLM para Ollama. Todavia no es un agente de investigacion funcional de punta a punta con CLI, busqueda web real validada o reportes persistentes.
+Research Agent is a Python research assistant that plans a topic, searches and reads web sources, extracts findings with an LLM, stores memory in ChromaDB, and writes structured reports in Markdown and JSON.
 
-## Que hace hoy
+> [!NOTE]
+> The project is in active development. The current implementation supports a working CLI, mock or Tavily search, Ollama-based generation, ChromaDB memory, and local report output.
 
-El flujo principal esta dividido en componentes pequenos:
+## Table of Contents
 
-- `Planner`: crea un plan inicial de investigacion para un tema.
-- `Researcher`: ejecuta una busqueda, lee cada resultado y crea hallazgos.
-- `SummaryBuilder`: genera titulo y sintesis deterministica como fallback si falla el LLM.
-- `Reporter`: convierte el estado del agente en un `ResearchReport`.
-- `ResearchWorkflow`: orquesta el caso de uso completo, carga memoria previa y guarda la nueva sintesis.
-- `ResearchReportWriter`: guarda reportes finales en Markdown y JSON.
-- `core/ports.py`: define contratos para busqueda, lectura de paginas y citas.
-- `LLMResearchAssistant`: usa un LLM para extraer claims, generar titulo y sintetizar resumenes.
-- `OllamaTextGenerator`: adaptador de Ollama via LangChain.
-- `ChromaResearchMemory`: implementa memoria persistente en ChromaDB detras de la misma interfaz.
-- `WebSearchTool`: soporta proveedor `mock` y una ruta inicial para `tavily`.
-- `WebPageReaderTool`: descarga paginas y extrae texto basico de HTML, con fallback si falla la red.
-- `CitationExtractor`: deduplica fuentes desde el reporte y sus hallazgos.
+- [Features](#features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [Roadmap](#roadmap)
 
-Los modelos de datos principales estan en `src/core/schemas.py` y el estado compartido del agente esta en `src/core/state.py`.
+## Features
 
-## Estructura
+- Topic planning through a dedicated `Planner`.
+- Search abstraction with mock search by default and Tavily support.
+- Web page reading with HTML cleanup and network fallbacks.
+- LLM-assisted claim extraction, title generation, and summary synthesis through Ollama.
+- ChromaDB-backed research memory for previous summaries.
+- Report generation in Markdown and JSON.
+- CLI entry point through `research-agent`.
+- Layered architecture with explicit ports for external dependencies.
+
+## Architecture
+
+The project follows a layered design:
+
+| Layer | Responsibility |
+| --- | --- |
+| `application/` | Wires use cases and dependencies. |
+| `core/` | Domain state, schemas, planning, research orchestration, reporting, and ports. |
+| `llm/` | LLM adapters and research prompts. |
+| `memory/` | ChromaDB persistence behind a memory interface. |
+| `reports/` | Markdown and JSON report output. |
+| `tools/` | External tools such as search, page reading, and citation extraction. |
+| `config/` | Environment-based settings. |
+
+Core code depends on protocols instead of concrete infrastructure. This keeps the workflow testable and makes providers easier to replace.
+
+## Installation
+
+Requires Python 3.11 or newer.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+.venv/bin/pip install -e ".[dev]"
+```
+
+This installs the project in editable mode, development dependencies, and the `research-agent` CLI script.
+
+## Configuration
+
+Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Supported variables:
+
+```env
+OLLAMA_API_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1
+LLM_PROVIDER=ollama
+LLM_TEMPERATURE=0.2
+
+DEFAULT_SEARCH_PROVIDER=mock
+TAVILY_API_KEY=your_tavily_api_key_here
+
+MEMORY_DIR=src/data/memory
+CHROMA_COLLECTION_NAME=research_memory
+REPORTS_DIR=src/data/outputs
+```
+
+### Providers
+
+| Variable | Description |
+| --- | --- |
+| `LLM_PROVIDER` | Currently supports `ollama`. |
+| `OLLAMA_API_URL` | Local Ollama server URL. |
+| `OLLAMA_MODEL` | Ollama model used for generation. |
+| `DEFAULT_SEARCH_PROVIDER` | Use `mock` for local testing or `tavily` for real web search. |
+| `TAVILY_API_KEY` | Required only when `DEFAULT_SEARCH_PROVIDER=tavily`. |
+| `MEMORY_DIR` | ChromaDB persistence directory. |
+| `CHROMA_COLLECTION_NAME` | ChromaDB collection name. |
+| `REPORTS_DIR` | Directory where Markdown and JSON reports are written. |
+
+## Usage
+
+### 1. Start Ollama
+
+In another terminal:
+
+```bash
+ollama serve
+```
+
+Pull the configured model if needed:
+
+```bash
+ollama pull llama3.1
+```
+
+### 2. Run the CLI
+
+Use mock search first:
+
+```bash
+.venv/bin/research-agent "impacto de la inteligencia artificial en la educacion"
+```
+
+Or run the module directly:
+
+```bash
+.venv/bin/python -m src.cli "impacto de la inteligencia artificial en la educacion"
+```
+
+The CLI prints the report title and output paths:
+
+```text
+Report title: ...
+Markdown: src/data/outputs/...
+JSON: src/data/outputs/...
+```
+
+### 3. Enable Tavily Search
+
+Set the provider and API key in `.env`:
+
+```env
+DEFAULT_SEARCH_PROVIDER=tavily
+TAVILY_API_KEY=your_real_key
+```
+
+Then run the same CLI command.
+
+### Python API
+
+```python
+from src.application.factory import build_research_workflow
+from src.config.settings import get_settings
+from src.reports.writer import ResearchReportWriter
+
+settings = get_settings()
+workflow = build_research_workflow(settings)
+
+report = workflow.run("impacto de la IA en educacion")
+paths = ResearchReportWriter(settings.reports_dir).save(report)
+
+print(report.title)
+print(paths.markdown)
+print(paths.json)
+```
+
+## Testing
+
+Run the test suite:
+
+```bash
+.venv/bin/python -m pytest -q
+```
+
+Run a syntax check:
+
+```bash
+.venv/bin/python -m compileall src tests
+```
+
+Current tests cover:
+
+- planner state creation
+- search and page reading flow
+- citation deduplication
+- ChromaDB memory behavior with a fake collection
+- LLM assistant behavior with a fake text generator
+- report writing
+- CLI execution path
+
+## Project Structure
 
 ```text
 src/
@@ -36,8 +198,8 @@ src/
   core/
     planner.py
     ports.py
-    researcher.py
     reporter.py
+    researcher.py
     schemas.py
     state.py
     summarizer.py
@@ -46,144 +208,39 @@ src/
     prompts.py
     research_assistant.py
   memory/
-    store.py
     chroma_store.py
+    store.py
   reports/
     writer.py
   tools/
+    citations.py
     web_search.py
     webpage_reader.py
-    citations.py
 tests/
   test_core_flow.py
 ```
 
-## Instalacion
+## Generated Data
 
-Requiere Python 3.11 o superior.
+Runtime artifacts are written under:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+```text
+src/data/memory/
+src/data/outputs/
 ```
 
-Tambien puedes instalar desde `requirements.txt`:
+`src/data/memory/` stores ChromaDB state. `src/data/outputs/` stores generated Markdown and JSON reports.
 
-```bash
-pip install -r requirements.txt
-```
+## Roadmap
 
-## Configuracion
+- Validate Tavily search with real credentials and production-like errors.
+- Improve article extraction quality for noisy web pages.
+- Tune LLM prompts with real research runs.
+- Store richer memory in ChromaDB, including findings and source evidence.
+- Add semantic retrieval of related past research.
+- Improve citation formatting with inline references.
+- Add integration tests for real Ollama, Tavily, and ChromaDB.
 
-Copia el archivo de ejemplo:
+## License
 
-```bash
-cp .env.example .env
-```
-
-Variables previstas actualmente:
-
-```env
-OLLAMA_API_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1
-LLM_PROVIDER=ollama
-LLM_TEMPERATURE=0.2
-DEFAULT_SEARCH_PROVIDER=mock
-TAVILY_API_KEY=your_tavily_api_key_here
-MEMORY_DIR=src/data/memory
-CHROMA_COLLECTION_NAME=research_memory
-REPORTS_DIR=src/data/outputs
-```
-
-Nota: la configuracion actual apunta a Ollama como proveedor de modelo local y usa resultados de busqueda simulados por defecto.
-`TAVILY_API_KEY` solo es necesaria si cambias `DEFAULT_SEARCH_PROVIDER` a `tavily`.
-La memoria usa ChromaDB de forma predeterminada y persiste en `MEMORY_DIR`.
-
-## Uso
-
-Ejecuta una investigacion desde la CLI:
-
-```bash
-research-agent "impacto de la IA en educacion"
-```
-
-La CLI guarda el reporte en Markdown y JSON dentro de `REPORTS_DIR`.
-
-Tambien puedes usar el workflow desde Python:
-
-```python
-from src.application.factory import build_research_workflow
-
-topic = "impacto de la IA en educacion"
-
-workflow = build_research_workflow()
-report = workflow.run(topic)
-
-print(report.title)
-print(report.summary)
-print(report.findings)
-```
-
-## Pruebas
-
-```bash
-pytest -q
-```
-
-En este repo hay un `.venv` local; la suite se puede ejecutar con:
-
-```bash
-.venv/bin/python -m pytest -q
-```
-
-Como comprobacion sintactica basica:
-
-```bash
-python3 -m compileall src tests
-```
-
-## Que falta para que quede funcional
-
-1. Implementar busqueda web real.
-   - `WebSearchTool` ya tiene proveedor `mock` y una ruta inicial para Tavily.
-   - Falta validar la integracion con credenciales reales y decidir si se usaran otros proveedores como DuckDuckGo, Bing o Google Custom Search.
-   - Tambien falta manejar errores, limites de resultados, timeouts y credenciales.
-
-2. Mejorar lectura de paginas.
-   - `WebPageReaderTool` ya descarga contenido y limpia HTML basico con libreria estandar.
-   - Falta extraccion mas robusta de articulo principal, titulo, fecha, autor y URL final.
-   - Se podria usar `trafilatura` o `readability-lxml` si se necesita mejor calidad.
-
-3. Validar LLM en ejecucion real.
-   - La capa LLM ya existe con `LLMResearchAssistant` y `OllamaTextGenerator`.
-   - Falta probar Ollama levantado localmente y ajustar prompts con datos reales.
-
-4. Definir el grafo del agente.
-   - Falta modelar nodos, transiciones, reintentos y estado persistente si se quiere un agente mas autonomo.
-
-5. Decidir si se agregaran mas proveedores.
-   - Hoy las dependencias quedan enfocadas en Ollama, Tavily y ChromaDB.
-   - Si se agregan mas proveedores, conviene hacerlo con adaptadores separados.
-
-6. Mejorar citas.
-   - `CitationExtractor` ya deduplica fuentes reales del reporte y de los hallazgos.
-   - Falta generar referencias en formato Markdown/APA y asociar citas inline a cada claim.
-
-7. Evolucionar la memoria.
-   - La memoria ChromaDB ya esta integrada en `ResearchWorkflow`.
-   - Falta versionar entradas, guardar historial por ejecucion y agregar recuperacion semantica sobre ChromaDB.
-
-8. Endurecer tests.
-   - Las pruebas actuales validan el flujo base, busqueda mock, lectura HTML, errores de red, deduplicacion de fuentes, memoria ChromaDB, CLI y reportes.
-   - Faltan tests de integracion para providers reales y generacion LLM.
-
-## Prioridad recomendada
-
-Para llevarlo a una primera version util:
-
-1. Validar busqueda real con Tavily u otro proveedor.
-2. Probar Ollama con una investigacion real desde la CLI.
-3. Mejorar el lector de paginas para extraer contenido principal.
-4. Probar y ajustar prompts LLM con investigaciones reales.
-5. Evolucionar ChromaDB de ultimo resumen por tema a historial y recuperacion semantica.
+No license has been declared yet.
